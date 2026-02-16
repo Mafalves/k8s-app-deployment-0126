@@ -18,6 +18,12 @@ Deploy the Flask app from **dockerized-app-cicd-aws-1125** (Project 2) on Kubern
 - **CD (Project 2):** Builds and pushes `matalve/flask-app:latest` and `matalve/flask-app:$SHA`.
 - **Kubernetes (this project):** Use the same registry image in Deployment manifests, e.g. `matalve/flask-app:latest` (or a specific SHA for pinned deploys).
 
+## Git commit → new image flow
+
+1. Push to `main` in **Project 2** (`dockerized-app-cicd-aws-1125`).
+2. CD workflow runs: builds image, pushes to Docker Hub as `matalve/flask-app:latest` and `matalve/flask-app:$SHA`.
+3. Image is available for K8s. To pick it up: `kubectl rollout restart deployment/flask-app-deployment` (uses `latest`), or update the image tag in the manifest and `kubectl apply`.
+
 ## Prerequisites
 
 - k3d and kubectl
@@ -26,10 +32,10 @@ Deploy the Flask app from **dockerized-app-cicd-aws-1125** (Project 2) on Kubern
 ## Deploy
 
 1. **Start the cluster**
-   - First time: `k3d cluster create dev-cluster -p 8080:80`
-     - Maps host port 8080 → Traefik port 80 (avoids needing root for port 80 on Linux)
-   - Already created: `k3d cluster start dev-cluster`
-   - Verify: `kubectl get nodes`
+   ```bash
+   k3d cluster create dev-cluster -p 8080:80
+   ```
+   Or: `k3d cluster start dev-cluster` if already created.
 
 2. **Apply manifests**
    ```bash
@@ -37,18 +43,6 @@ Deploy the Flask app from **dockerized-app-cicd-aws-1125** (Project 2) on Kubern
    kubectl apply -f k8s/ingress.yaml
    ```
 
-3. **Wait for pods**
-   ```bash
-   kubectl get pods -w
-   ```
-   Exit when pods are `Running` and `Ready`.
+3. **Wait for pods** (`kubectl get pods -w`), then access **http://localhost:8080**
 
-4. **Access the app**
-   - **http://localhost:8080** (with `-p 8080:80` mapping)
-   - Routes: `/`, `/health`, `/api/info`
-
-5. **Load test (optional)**
-   ```bash
-   ./scripts/load-test.sh http://localhost:8080 60
-   ```
-   Watch HPA in another terminal: `kubectl get hpa -w`
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for full steps (picking up new images, teardown, load test).
