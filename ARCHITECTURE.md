@@ -1,6 +1,32 @@
 ## Project 3 – Kubernetes Architecture Overview
 
-This document explains how the Flask app from **`dockerized-app-cicd-aws-1125` (Project 2)** is deployed on Kubernetes. It focuses on the **request flow** (browser → Ingress → Service → Pods) and the core objects.
+How the Flask app from **`dockerized-app-cicd-aws-1125` (Project 2)** is deployed on Kubernetes.
+
+---
+
+## Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph External
+        User[User / Browser]
+    end
+
+    subgraph Cluster["k3d Cluster"]
+        Ingress[Ingress<br/>Traefik]
+        Service[Service<br/>ClusterIP :80 → :5000]
+        Deployment[Deployment<br/>flask-app-deployment]
+        Pod1[Pod 1]
+        Pod2[Pod 2]
+
+        User --> Ingress
+        Ingress --> Service
+        Service --> Pod1
+        Service --> Pod2
+        Deployment -.-> Pod1
+        Deployment -.-> Pod2
+    end
+```
 
 ---
 
@@ -13,47 +39,30 @@ This document explains how the Flask app from **`dockerized-app-cicd-aws-1125` (
     - `/api/info` – JSON with app/env details.
 
 - **Ingress Controller + Ingress**
-  - Ingress Controller (e.g. NGINX Ingress) terminates external HTTP/HTTPS traffic.
-  - An `Ingress` resource routes external traffic (e.g. `http://flask.local/*`) to the internal Service.
+  - Traefik (k3d default) terminates external HTTP and routes to the internal Service.
 
 - **Service (`ClusterIP`)**
-  - Internal load balancer for the Flask Pods.
-  - Type: `ClusterIP`, selected by labels like `app: flask-app`.
-  - Provides a stable DNS name inside the cluster that the Ingress targets.
+  - Internal load balancer for the Flask Pods; selected by `app: flask-app`.
 
 - **Deployment + Pods**
-  - `Deployment` manages one or more replicas of the Flask app.
-  - Each Pod runs the Docker image built in **`dockerized-app-cicd-aws-1125`**.
-  - Container listens on port `5000` (configurable via environment variable).
-  - Environment variables such as `APP_VERSION` and `ENVIRONMENT` are injected through the Pod spec (later wired to ConfigMaps/Secrets).
-
-- **Database (optional, future)**
-  - The current Flask app does **not use a database**.
-  - If needed later, a DB would be exposed via its own Service (in-cluster) or a managed endpoint (e.g. RDS).
+  - Manages replicas of the Flask app; each Pod runs the Project 2 image.
+  - Port `5000`; env vars from ConfigMaps/Secrets.
 
 ---
 
 ## Database Strategy
 
-**Decision:** This project does **not** use a database. No DB setup is required.
+**Decision:** No database.
 
-**Rationale:**
+**Rationale:** The app is stateless (env vars + runtime info only). This project focuses on K8s deployment patterns; a DB would expand scope without adding K8s concepts.
 
-- The Flask app from Project 2 is **stateless**. It serves `/`, `/health`, and `/api/info` using only environment variables and runtime info (hostname, version). No persistent data is stored.
-- This project focuses on **Kubernetes deployment patterns** (Deployment, Service, Ingress, ConfigMaps, Secrets, HPA). Adding a database would expand scope without demonstrating additional K8s concepts for this portfolio slice.
-- Project 1 (Terraform) already includes RDS. A future iteration could wire this app to a managed DB; for now, documenting the decision is sufficient.
-
-**If a database were needed later:**
-
-- Use a managed service (e.g. AWS RDS) or an in-cluster DB (e.g. PostgreSQL StatefulSet).
-- Expose it via a ClusterIP Service and inject connection details via Secrets.
-- Add an init container or startup logic in the app to verify connectivity before serving traffic.
+**If a DB were needed later:** Managed service (e.g. RDS) or in-cluster DB; expose via ClusterIP Service; inject connection details via Secrets.
 
 ---
 
 ## Data Flow: Request Path
 
-At a high level, HTTP requests follow this path:
+HTTP requests follow this path:
 
 ```text
 User Browser / curl
@@ -73,30 +82,15 @@ Flask routes inside container
 
 ### Request examples
 
-- **`GET /`**
-  - Purpose: user-facing home page.
-  - Flow: Browser → Ingress → Service → Flask Pod → `home()` route → HTML response.
-
-- **`GET /health`**
-  - Purpose: health endpoint for probes and basic diagnostics.
-  - Flow: Client/probe → Ingress → Service → Flask Pod → `health()` route → JSON.
-  - Used later for Kubernetes **liveness/readiness probes**.
-
-- **`GET /api/info`**
-  - Purpose: quick way to inspect version, environment, hostname, and runtime info.
-  - Flow: Client → Ingress → Service → Flask Pod → `info()` route → JSON response.
+- **`GET /`** — Home page.
+- **`GET /health`** — Health check; used by liveness/readiness probes.
+- **`GET /api/info`** — Version, environment, hostname, runtime info.
 
 ---
 
 ## Relationship to Project 2 (Flask + Docker)
 
-- **Reused Pieces**
-  - The same Flask application (`main.py`) and Docker image from Project 2 (dockerized-app-cicd-aws-1125) are reused without major code changes.
-  - Configuration is still driven by environment variables, which maps cleanly to Kubernetes `env` configuration, ConfigMaps, and Secrets.
-
-- **What Kubernetes Adds**
-  - **Scheduling and replicas**: multiple Pods can run the same image for high availability and horizontal scaling.
-  - **Stable networking**: Services and Ingress provide stable endpoints independent of Pod lifecycles.
-  - **Health management**: readiness/liveness probes can leverage `/health` to restart or remove unhealthy Pods from traffic.
+- **Reused:** Same Flask app and Docker image from Project 2; config via env vars (ConfigMaps/Secrets).
+- **Kubernetes adds:** Replicas and scheduling; stable networking (Service, Ingress); health probes via `/health`.
 
 ---
