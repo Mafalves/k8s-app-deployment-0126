@@ -1,6 +1,6 @@
 # Project 3: Kubernetes Deployment
 
-Deploy the Flask app from **dockerized-app-cicd-aws-1125** (Project 2) on Kubernetes (local k3d cluster). See `ARCHITECTURE.md` for request flow and components.
+Deploy the Flask app from **dockerized-app-cicd-aws-1125** (Project 2) on Kubernetes (local k3d cluster). See [ARCHITECTURE.md](ARCHITECTURE.md) for request flow and components.
 
 ## Registry
 
@@ -43,9 +43,9 @@ Deploy the Flask app from **dockerized-app-cicd-aws-1125** (Project 2) on Kubern
    kubectl apply -f k8s/ingress.yaml
    ```
 
-3. **Wait for pods** (`kubectl get pods -w`), then access **http://localhost:8080**
+3. **Wait for pods** (`kubectl get pods -w`), then access http://localhost:8080
 
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for full steps (picking up new images, teardown, load test).
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full steps (picking up new images, teardown, load test).
 
 ## Logging and debugging
 
